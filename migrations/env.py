@@ -7,8 +7,8 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from models import Category, Base
-from db import SYNC_DATABASE_URL
+from app.models.category import Category, Base
+from app.core.db import SYNC_DATABASE_URL
 
 
 

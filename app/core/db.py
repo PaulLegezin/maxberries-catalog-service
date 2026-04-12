@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine
+from app.core.logger_config import logger
+
 load_dotenv()
 
 user = os.getenv("POSTGRES_USER")
@@ -19,9 +20,10 @@ engine = create_async_engine(DATABASE_URL, connect_args={
     }
 )
 
+
 async def check_connection():
     try:
         async with engine.connect() as conn:
-            print("Соединение установлено")
+            logger.info("Соединение установлено")
     except Exception as e:
-        print(f"Ошибка подключения: {e}")
+        logger.info(f"Ошибка подключения: {e}")

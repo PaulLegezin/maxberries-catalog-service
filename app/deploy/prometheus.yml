@@ -4,4 +4,4 @@ global:
 scrape_configs:
   - job_name: 'fastapi_maxberries'
     static_configs:
-      - targets: ['fastapi_app:8000']
+      - targets: ['fastapi_catalog_service:8000']

@@ -22,6 +22,8 @@ services:
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
     networks:
       - backend_network
 
@@ -29,9 +31,9 @@ services:
   logstash:
     image: logstash:8.12.0
     volumes:
-      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./app/deploy/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
     ports:
-      - "12201:12201/udp"
+      - "12201:12201"
     depends_on:
       - elasticsearch
     networks:
@@ -48,10 +50,10 @@ services:
       - backend_network
 
 
-  fastapi_app:
+  fastapi_catalog_service:
     build: .
-    command:  sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
-    container_name: fastapi_app
+    command:  sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    container_name: fastapi_catalog_service
     env_file:
       - .env
     ports:
@@ -61,18 +63,13 @@ services:
       - logstash
     networks:
       - backend_network
-    # Отправка логов в Logstash через драйвер gelf
-    logging:
-      driver: gelf
-      options:
-        gelf-address: "udp://127.0.0.1:12201"
 
 
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
     volumes:
-      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./app/deploy/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
     networks:
@@ -82,7 +79,7 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     volumes:
-      - ./deploy/grafana_datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./app/deploy/grafana_datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     ports:
