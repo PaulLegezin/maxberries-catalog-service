@@ -1,1 +1,1 @@
-# maxberries
+# maxberries-catalog-service
