@@ -1,8 +1,10 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete
 
+from app.repositories.product import ProductRepository
 from app.schemas.product import ProductResponse, ProductsResponse, ProductCreate
 from app.models.product import Product
 from app.api.dependencies import get_db
@@ -13,14 +15,26 @@ router = APIRouter(prefix="/products", tags=["products"])
 
 
 
-@router.get("/products/{product_id}", response_model=ProductResponse)
-async def get_product(product_id: int, db: AsyncSession = Depends(get_db)) -> ProductResponse:
+@router.get("/{product_id}", response_model=ProductResponse)
+async def get_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> ProductResponse:
     logger.info("Запрос на получение товара. ID: %s", product_id)
+    repo = ProductRepository(db)
 
     try:
-        stmt = select(Product).where(Product.id == product_id)
-        result = await db.execute(stmt)
-        product = result.scalar_one_or_none()
+        product = await repo.get(product_id)
+        
+        if not product:
+            logger.warning("Товар с ID: %s не найден", product_id)
+            raise HTTPException(
+                status_code=404, 
+                detail="Товар не найден"
+                )
+        
+        logger.info("Товар с ID: %s успешно отправлен клиенту", product_id)
+        return product
+    
+    except HTTPException:
+        raise
 
     except Exception as e:
         logger.exception("Ошибка базы данных при поиске товара: %s", str(e))
@@ -28,27 +42,19 @@ async def get_product(product_id: int, db: AsyncSession = Depends(get_db)) -> Pr
             status_code=500, 
             detail="Внутренняя ошибка сервера"
             )
-    
-    if product is None:
-        logger.warning("Товар с ID: %s не найден", product_id)
-        raise HTTPException(
-            status_code=404, 
-            detail="Товар не найден"
-            )
-    
-    logger.info("Товар с ID: %s успешно отправлен клиенту", product_id)
-    return product
 
 
 
-@router.get("/products/", response_model=ProductsResponse)
+@router.get("/", response_model=ProductsResponse)
 async def get_products(db: AsyncSession = Depends(get_db)) -> ProductsResponse:
     logger.info("Запрос на получение всех товаров")
+    repo = ProductRepository(db)
 
     try:
-        stmt = select(Product)
-        result = await db.execute(stmt)
-        products = result.scalars().all()
+        products = await repo.get_all()
+
+        logger.info("Успешно найдено товаров: %s", len(products))
+        return {"products": products}
 
     except Exception as e:
         logger.exception("Ошибка базы данных при поиске товаров: %s", str(e))
@@ -57,34 +63,26 @@ async def get_products(db: AsyncSession = Depends(get_db)) -> ProductsResponse:
             detail="Внутренняя ошибка сервера"
             )
     
-    logger.info("Успешно найдено товаров: %s", len(products))
-    return {"products": products}
 
 
-
-@router.post("/products/", response_model=ProductResponse)
+@router.post("/", response_model=ProductResponse)
 async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_db)):
     logger.info("Запрос на создание товара: %s", product.name)
+    repo = ProductRepository(db)
 
     try:   
-        stmt = insert(Product).values(**product.model_dump()).returning(Product)
-        result = await db.execute(stmt)
-        new_product = result.scalar_one()
+        new_product = await repo.create(product.model_dump())
 
-        await db.commit()
-        await db.refresh(new_product)
         logger.info("Товар успешно создан. ID: %s", new_product.id)
         return new_product
     
     except IntegrityError as e:
-        await db.rollback()
         logger.warning("Конфликт при создании товара: %s", str(e))
         raise HTTPException(
             status_code=400,
             detail="Товар с таким именем уже существует"
         )
     except Exception as e:
-        await db.rollback()
         logger.exception("Непредвиденная ошибка при создании товара")
         raise HTTPException(
             status_code=500, 
@@ -93,14 +91,13 @@ async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_
     
 
 
-@router.put("/products/{id}", response_model=ProductResponse)
-async def update_product(id: int, product: ProductCreate, db: AsyncSession = Depends(get_db)):
+@router.put("/{id}", response_model=ProductResponse)
+async def update_product(id: uuid.UUID, product: ProductCreate, db: AsyncSession = Depends(get_db)):
     logger.info("Запрос на обновление товара. ID: %s", id)
+    repo = ProductRepository(db)
 
     try:
-        stmt = update(Product).where(Product.id == id).values(**product.model_dump()).returning(Product)
-        result = await db.execute(stmt)
-        new_product = result.scalar_one_or_none()
+        new_product = await repo.update(id, product.model_dump())
 
         if not new_product:
             logger.warning("Товар не найден")
@@ -109,16 +106,20 @@ async def update_product(id: int, product: ProductCreate, db: AsyncSession = Dep
                 detail="Товар не найден"
                 )
     
-        await db.commit()
-        await db.refresh(new_product)
         logger.info("Товар ID успешно обновлен. ID: %s", id)
         return new_product
 
     except HTTPException:
         raise
 
+    except IntegrityError as e:
+        logger.warning("Ошибка целостности при обновлении товара %s: %s", id, str(e))
+        raise HTTPException(
+            status_code=400, 
+            detail="Некорректные данные: проверьте ID категории или уникальность полей"
+            )
+
     except Exception as e:
-        await db.rollback()
         logger.exception("Ошибка базы данных при поиске товара: %s", str(e))
         raise HTTPException(
             status_code=500, 
@@ -127,30 +128,27 @@ async def update_product(id: int, product: ProductCreate, db: AsyncSession = Dep
     
 
 
-@router.delete("/products/{id}", status_code=204)
-async def delete_product(id: int, db: AsyncSession = Depends(get_db)):
+@router.delete("/{id}", status_code=204)
+async def delete_product(id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     logger.info("Запрос на удаление товара. ID: %s", id)
+    repo = ProductRepository(db)
 
     try:
-        stmt = delete(Product).where(Product.id == id).returning(Product.id)
-        result = await db.execute(stmt)
-        deleted_id = result.scalar_one_or_none()
+        del_prod = await repo.delete(id)
 
-        if not deleted_id:
+        if not del_prod:
             logger.warning("Товар не найден")
             raise HTTPException(
                 status_code=404, 
                 detail="Товар не найден"
                 )
     
-        await db.commit()
         logger.info("Товар успешно удален. ID: %s", id)
 
     except HTTPException:
         raise
 
     except Exception as e:
-        await db.rollback()
         logger.exception("Ошибка базы данных при удалении товара: %s", str(e))
         raise HTTPException(
             status_code=500, 

@@ -7,7 +7,9 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from app.models.category import Category, Base
+from app.models.category import Base
+from app.models.category import Category
+from app.models.product import Product
 from app.core.db import SYNC_DATABASE_URL
 
 

@@ -1,9 +1,14 @@
+import uuid
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-class CategoryResponse(BaseModel):
-    id: int
-    name: str = Field(min_length=1)
+MIN_NAME_LENGTH = 1
+
+class CategoryBase(BaseModel):
+    name: str = Field(min_length=MIN_NAME_LENGTH)
+
+class CategoryResponse(CategoryBase):
+    id: uuid.UUID
     created_at: datetime
 
     class Config:
@@ -14,5 +19,5 @@ class CategoriesResponse(BaseModel):
     categories: list[CategoryResponse]
 
 
-class CategoryCreate(BaseModel):
-    name: str = Field(min_length=1)
+class CategoryCreate(CategoryBase):
+    pass
