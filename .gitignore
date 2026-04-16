@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+pgdata/
+.venv/
+.env
+**/__pycache__/
+.ruff_cache
