@@ -1,9 +1,10 @@
-from fastapi import FastAPI, status
 from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, status
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from app.api.routers import categories_router, products_router
 from app.core.db import check_connection
-from app.api.routers import products_router, categories_router
 from app.core.logger_config import logger
 
 
@@ -15,10 +16,7 @@ async def lifespan(app: FastAPI):
     logger.info("Остановка приложения...")
 
 
-app = FastAPI(
-    lifespan=lifespan,
-    title="Maxberries Catalog Service"
-    )
+app = FastAPI(lifespan=lifespan, title="Maxberries Catalog Service")
 
 
 app.include_router(products_router)

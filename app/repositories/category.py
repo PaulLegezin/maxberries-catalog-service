@@ -1,8 +1,11 @@
 import uuid
-from sqlalchemy import select, insert, update, delete
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.category import Category
+
 
 class CategoryRepository:
     def __init__(self, session: AsyncSession):
@@ -12,24 +15,29 @@ class CategoryRepository:
         stmt = select(Category)
         result = await self.session.execute(stmt)
         return result.scalars().all()
-    
+
     async def create(self, data: dict) -> Category:
         try:
             stmt = insert(Category).values(**data).returning(Category)
             result = await self.session.execute(stmt)
             new_category = result.scalar_one()
-            
+
             await self.session.commit()
             await self.session.refresh(new_category)
             return new_category
 
-        except IntegrityError as e:
+        except IntegrityError:
             await self.session.rollback()
             raise
 
     async def update(self, cat_id: uuid.UUID, data: dict) -> Category | None:
         try:
-            stmt = update(Category).where(Category.id == cat_id).values(**data).returning(Category)
+            stmt = (
+                update(Category)
+                .where(Category.id == cat_id)
+                .values(**data)
+                .returning(Category)
+            )
             result = await self.session.execute(stmt)
             new_category = result.scalar_one_or_none()
             if new_category:
@@ -50,5 +58,4 @@ class CategoryRepository:
             return False
         except IntegrityError:
             await self.session.rollback()
-            raise 
-        
+            raise

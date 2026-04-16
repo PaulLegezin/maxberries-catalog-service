@@ -1,11 +1,14 @@
 import uuid
-from pydantic import BaseModel, Field
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 MIN_NAME_LENGTH = 1
 
+
 class CategoryBase(BaseModel):
     name: str = Field(min_length=MIN_NAME_LENGTH)
+
 
 class CategoryResponse(CategoryBase):
     id: uuid.UUID

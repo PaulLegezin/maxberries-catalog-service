@@ -1,9 +1,12 @@
 import uuid
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
+
 from app.models.category import Base
+
 
 class Product(Base):
     __tablename__ = "products"
