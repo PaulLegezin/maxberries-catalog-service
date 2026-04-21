@@ -17,9 +17,9 @@ jobs:
         run: pip install ruff
 
       - name: Run Ruff Check
-        # Проверка правил и сортировки импортов
+
         run: ruff check .
         
       - name: Run Ruff Format
-        # Проверка, что код отформатирован (не меняет файлы, только проверяет)
+  
         run: ruff format . --check

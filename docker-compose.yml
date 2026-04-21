@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:15-alpine
-    container_name: postgres_db
+    container_name: postgres_db_catalog
     env_file:
       - .env
     volumes:
@@ -54,7 +54,6 @@ services:
     build: .
     volumes:
       - .:/app
-    command:  sh -c "sleep 3 && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     container_name: fastapi_catalog_service
     env_file:
       - .env
